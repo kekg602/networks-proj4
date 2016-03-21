@@ -1,3 +1,12 @@
 #!/usr/bin/python
 
+import sys
+
+# Get the user's username and password
+# for fakebook
+username = sys.argv[1];
+password = sys.argv[2];
+
+print username + " " + password
+
 
