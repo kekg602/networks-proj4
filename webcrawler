@@ -1,6 +1,12 @@
 #!/usr/bin/python
 
 import sys
+import socket
+
+# Default port
+PORT = 80
+
+FAKEBOOK_HOST = "fring.ccs.neu.edu"
 
 # Get the user's username and password
 # for fakebook
@@ -9,4 +15,23 @@ password = sys.argv[2];
 
 print username + " " + password
 
+# initial connection to fakebook
 
+# create a TCP socket
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# connect to fakebook
+server_address = (FAKEBOOK_HOST, PORT)
+sock.connect(server_address)
+
+# send initial GET request to fakebook
+message = "GET /fakebook/ HTTP/1.1 \r\nHost: fring.ccs.neu.edu \r\n\r\n"
+
+sock.send(message)
+
+s = 1
+while s:
+	status = sock.recv(1500)
+
+	print status
+	s = 0
