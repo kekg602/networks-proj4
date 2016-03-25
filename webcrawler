@@ -2,6 +2,7 @@
 
 import sys
 import socket
+import HTMLParser
 
 # Default port
 PORT = 80
@@ -27,7 +28,7 @@ def getResponse(sock):
 
 	return fullResponse
 	
-# Go through the response
+# Get the status from the response
 def getStatus(response):
 	# Get each line of the response
 	lines = response.split("\r\n")
@@ -47,7 +48,10 @@ def handleOkStatus(response):
 	# Get the message body
 	lines = response.split("\r\n")
 	body = lines[-1]
-	print "OK function"
+	
+	# Parse through it looking for key items
+	parser = PyHtmlParser()
+	parser.feed(body)
 	
 # Go through the response and add the
 # new location to the list of urls
@@ -59,6 +63,22 @@ def handleRedirectStatus(response):
 		linesDetails = l.split(":")
 		if lineDetails[0] == "Location":
 			print "Redirect function"
+			
+# Print the found flags
+def printSecretFlags():
+	global secretFlags
+	for flag in secretFlags:
+		print flag + "\n"
+
+# Handle html parsing
+class PyHtmlParser(HTMLParser.HTMLParser):
+	
+	def handle_starttag(self, tag, attrs):
+		print "Encountered a start tag:", tag
+	def handle_endtag(self, tag):
+        	print "Encountered an end tag :", tag
+    	def handle_data(self, data):
+        	print "Encountered some data  :", data
 
 # Get the user's username and password
 # for fakebook
@@ -82,13 +102,25 @@ visitedUrls = []
 # Current URL that is being requested
 currentURL = ""
 
+# Secret flags to find and print at end
+secretFlags = []
+
+# Keep track of cookie
+cookie = ""
+
+# Number of unvisited urls there are
 numUnvisitedUrls = len(unvisitedUrls)
 
+# Keep track of response from a request
 fullResponse = ""
 
+# While more urls to go through
 while numUnvisitedUrls > 0:
 	
 	currentURL = unvisitedUrls[0]
+	
+	# Check to make sure it is a link we need to check
+	# meaning is from domain fring.ccs.neu.edu
 	
 	# if we have already visited this url
 	# remove it and move on to the next
@@ -126,4 +158,5 @@ while numUnvisitedUrls > 0:
 	
 	# Update the number of urls left to visit
 	numUnvisitedUrls = len(unvisitedUrls)
-				
+
+printSecretFlags()
