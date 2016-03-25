@@ -9,11 +9,29 @@ PORT = 80
 
 # Host to connect to
 FAKEBOOK_HOST = "fring.ccs.neu.edu"
+LOGIN_URL = "/accounts/login/?next=/fakebook/"
 
-# Setup the get call
-def setupGetCall(path):
-        call = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\n\r\n"
-        return call
+# Setup get requests
+def setupGetRequest(path):
+        request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\n\r\n"
+        return request
+		
+# Setup the post request to login
+def setupLoginRequest():
+	global csrfToken
+	global setCookie
+
+	cookieString = ""
+	for c in setCookie:
+		if cookieString != "":
+			cookieString = cookieString + ";"
+		cookieString = cookieString + " " + c
+
+	print "Cookie string" + cookieString
+
+	request = "POST /accounts/login/ HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\nCookie: " + cookieString +"\r\n\r\nusername=" + username + "&password=" + password + "&csrfmiddlewaretoken=" + csrfToken + "&next=/fakebook/\r\n"
+	print request
+	return request
 
 # Get the response
 def getResponse(sock):
@@ -45,10 +63,21 @@ def getStatus(response):
 # Go through the html and look for more
 # URLs as well as the secret flags
 def handleOkStatus(response):
+	global setCookie
+
 	# Get the message body
 	lines = response.split("\r\n")
+
+	# Get cookies
+	for l in lines:
+		headerInfo = l.split(":")
+		if headerInfo[0] == "Set-Cookie":
+			cookie = headerInfo[1].split(";")
+			print "COOKIE INFO " + cookie[0]
+			setCookie.append(cookie[0])
+
 	body = lines[-1]
-	
+
 	# Parse through it looking for key items
 	parser = PyHtmlParser()
 	parser.feed(body)
@@ -58,27 +87,83 @@ def handleOkStatus(response):
 def handleRedirectStatus(response):
 	lines = response.split("\r\n")
 	
+	print "Redirect"
+
 	# Find location header
 	for l in lines:
 		linesDetails = l.split(":")
 		if lineDetails[0] == "Location":
 			print "Redirect function"
 			
+# Check starter tags for certain attributes
+def checkAttributes(key, value, attrs):
+	for attr in attrs:
+		if attr[0] == key and (attr[1] == value or value == ""):
+			return True
+			
+	return False
+
+# Get an attribute value
+def getStartTagAttributeValue(value, attrs):
+	global csrfToken
+
+	for attr in attrs:
+		if attr[0] == value:
+			if value == "value":
+				csrfToken = attr[1]
+				print "Setting token :" + csrfToken
+
+			return attr[1]
+
 # Print the found flags
 def printSecretFlags():
 	global secretFlags
 	for flag in secretFlags:
 		print flag + "\n"
 
+def setCsrf(token):
+	global csrfToken
+	csrfToken = token
+	print "Setting token :" + csrfToken
+
 # Handle html parsing
 class PyHtmlParser(HTMLParser.HTMLParser):
-	
+	#global unvisitedUrls
+	#global secretFlags
+	global isLastStartTagFlag
+
+	isLastStartTagFlag = False
+
 	def handle_starttag(self, tag, attrs):
-		print "Encountered a start tag:", tag
+		#print "Encountered a start tag:", tag
+
+		# Check for csrf value
+		# If found, store it to use for login
+		if tag == "input":
+			if (checkAttributes("type", "hidden", attrs)) and (checkAttributes("name", "csrfmiddlewaretoken", attrs)) and (checkAttributes("value", "", attrs)):
+				csrfToken = getStartTagAttributeValue("value", attrs)
+
+		# Check for URLs
+		# If one is foun add it to unvisitedUrls list
+		if tag == "a":
+			if (checkAttributes("href", "", attrs)):
+				print "Link found"
+				#unvisitedUrls.append(attr[1])
+
+		# Check for secret flags
+		if tag == "h2":
+			if checkAttributes("class", "secret_flag", attrs) and checkAttributes("style", "color:red", attrs):
+				print "Found flag start tag"						
+				isLastStartTagFlag = True
+
 	def handle_endtag(self, tag):
-        	print "Encountered an end tag :", tag
-    	def handle_data(self, data):
-        	print "Encountered some data  :", data
+       	#print "Encountered an end tag :", tag
+		temp = "doing something here to make it happy"
+
+	def handle_data(self, data):
+       	#print "Encountered some data  :", data
+		if isLastStartTagFlag:
+			print "This data is a flag"
 
 # Get the user's username and password
 # for fakebook
@@ -94,7 +179,7 @@ sock.connect(server_address)
 
 # URLs to search
 unvisitedUrls = []
-unvisitedUrls.append("/accounts/login/?next=/fakebook/")
+#unvisitedUrls.append("/accounts/login/?next=/fakebook/")
 
 # Visited URLs
 visitedUrls = []
@@ -105,14 +190,53 @@ currentURL = ""
 # Secret flags to find and print at end
 secretFlags = []
 
-# Keep track of cookie
-cookie = ""
+# Keep track of set cookie values
+setCookie = []
 
 # Number of unvisited urls there are
 numUnvisitedUrls = len(unvisitedUrls)
 
 # Keep track of response from a request
 fullResponse = ""
+
+# Keep track if last start tag signifies a flag
+isLastStartTagFlag = False
+
+# Keep track of csrf token for login
+csrfToken = ""
+
+# Handle login:
+loggedIn = False
+while not loggedIn:
+	currentURL = LOGIN_URL
+
+	# send GET request to fakebook
+	message = setupGetRequest(currentURL)
+	sock.send(message)
+
+	# get full response
+	fullResponse = getResponse(sock)
+	print fullResponse	
+
+	# get the status code
+	status = getStatus(fullResponse)
+	
+	# OK, 200 - parse response
+	if int(status) == 200:
+		handleOkStatus(fullResponse)
+	
+	# connect to fakebook
+	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	server_address = (FAKEBOOK_HOST, PORT)
+	sock.connect(server_address)
+
+	message = setupLoginRequest()
+	sock.send(message)
+		
+	fullResponse = getResponse(sock)
+	print "TRIED LOGIN " + fullResponse
+		
+	loggedIn = True
 
 # While more urls to go through
 while numUnvisitedUrls > 0:
@@ -129,7 +253,7 @@ while numUnvisitedUrls > 0:
 		
 	else:	
 		# send GET request to fakebook
-		message = setupGetCall(currentURL)
+		message = setupGetRequest(currentURL)
 		sock.send(message)
 
 		# get full response
