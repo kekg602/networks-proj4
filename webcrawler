@@ -6,16 +6,64 @@ import socket
 # Default port
 PORT = 80
 
+# Host to connect to
 FAKEBOOK_HOST = "fring.ccs.neu.edu"
+
+# Setup the get call
+def setupGetCall(path):
+        call = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\n\r\n"
+        return call
+
+# Get the response
+def getResponse(sock):
+	fullResponse = ""
+	while True:
+		response = sock.recv(1500)
+
+                if not response:
+                       break;
+                else:
+                       fullResponse = fullResponse + response
+
+	return fullResponse
+	
+# Go through the response
+def getStatus(response):
+	# Get each line of the response
+	lines = response.split("\r\n")
+
+	# The first line gives status information
+	# the second param is the status information
+	initLine = lines[0].split()
+
+	if initLine[0] == "HTTP/1.1":
+		status = str(initLine[1])
+
+	return status
+		
+# Go through the html and look for more
+# URLs as well as the secret flags
+def handleOkStatus(response):
+	# Get the message body
+	lines = response.split("\r\n")
+	body = lines[-1]
+	print "OK function"
+	
+# Go through the response and add the
+# new location to the list of urls
+def handleRedirectStatus(response):
+	lines = response.split("\r\n")
+	
+	# Find location header
+	for l in lines:
+		linesDetails = l.split(":")
+		if lineDetails[0] == "Location":
+			print "Redirect function"
 
 # Get the user's username and password
 # for fakebook
 username = sys.argv[1];
 password = sys.argv[2];
-
-print username + " " + password
-
-# initial connection to fakebook
 
 # create a TCP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -24,14 +72,58 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_address = (FAKEBOOK_HOST, PORT)
 sock.connect(server_address)
 
-# send initial GET request to fakebook
-message = "GET /fakebook/ HTTP/1.1 \r\nHost: fring.ccs.neu.edu \r\n\r\n"
+# URLs to search
+unvisitedUrls = []
+unvisitedUrls.append("/accounts/login/?next=/fakebook/")
 
-sock.send(message)
+# Visited URLs
+visitedUrls = []
 
-s = 1
-while s:
-	status = sock.recv(1500)
+# Current URL that is being requested
+currentURL = ""
 
-	print status
-	s = 0
+numUnvisitedUrls = len(unvisitedUrls)
+
+fullResponse = ""
+
+while numUnvisitedUrls > 0:
+	
+	currentURL = unvisitedUrls[0]
+	
+	# if we have already visited this url
+	# remove it and move on to the next
+	if currentURL in visitedUrls:
+		unvisitedUrls.remove(currentURL)
+		
+	else:	
+		# send GET request to fakebook
+		message = setupGetCall(currentURL)
+		sock.send(message)
+
+		# get full response
+		fullResponse = getResponse(sock)
+	
+		# print response
+		#print fullResponse
+
+		# get the status code and handle each
+		status = getStatus(fullResponse)
+	
+		# OK, 200 - parse response
+		if int(status) == 200:
+			handleOkStatus(fullResponse)
+		# Moved permanently, 301 - request new location
+		elif int(status) >= 300 and status < 400:
+			handleRedirectStatus(fullResponse)
+	
+		# As long as the url does not need to be requested again
+		# (any status except 500 including 403 and 404)
+		# remove it from the unvisited list
+		if int(status) != 500:
+			visitedUrls = visitedUrls.append(currentURL)
+	    		unvisitedUrls.remove(currentURL)
+		
+	
+	# Update the number of urls left to visit
+	numUnvisitedUrls = len(unvisitedUrls)
+				
