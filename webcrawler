@@ -29,7 +29,7 @@ def setupLoginRequest():
 
 	print "Cookie string" + cookieString
 
-	request = "POST /accounts/login/ HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\nCookie: " + cookieString +"\r\n\r\nusername=" + username + "&password=" + password + "&csrfmiddlewaretoken=" + csrfToken + "&next=/fakebook/\r\n"
+	request = "POST /accounts/login/ HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\nCookie: " + cookieString +"\r\nOrigin: http://fring.ccs.neu.edu\r\nReferer: http://fring.ccs.neu.edu/accounts/login/\r\n\r\nusername=" + username + "&password=" + password + "&csrfmiddlewaretoken=" + csrfToken + "&next=/fakebook/\r\n"
 	print request
 	return request
 
