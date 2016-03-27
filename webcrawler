@@ -29,13 +29,13 @@ def setupLoginRequest():
 
 	print "Cookie string" + cookieString
 
-	request = "POST /accounts/login/ HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\nCookie: " + cookieString +"\r\nOrigin: http://fring.ccs.neu.edu\r\nReferer: http://fring.ccs.neu.edu/accounts/login/\r\n\r\nusername=" + username + "&password=" + password + "&csrfmiddlewaretoken=" + csrfToken + "&next=/fakebook/\r\n"
+	request = "POST /accounts/login/ HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\nContent-Length: 109\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\nOrigin: http://fring.ccs.neu.edu\r\nCookie: " + cookieString +"\r\nUpgrade-Insecure-Requests: 1\r\nContent-Type: application/x-www-form-urlencoded\r\nDNT: 1\r\nReferer: http://fring.ccs.neu.edu/accounts/login/\r\nAccept-Encoding: gzip, deflate\r\nAccept-Language: en-US,en;q=0.8\r\nCookie: csrftoken=" + csrfToken + "; sessionid=" + cookieString + "\r\n\r\nusername=" + username + "&password=" + password + "&csrfmiddlewaretoken=" + csrfToken + "&next=%2Ffakebook%2F\r\n"
 	print request
 	return request
 
 # Get the response
 def getResponse(sock):
-	fullResponse = ""
+	fullResponse = ""; 
 	while True:
 		response = sock.recv(1500)
 
