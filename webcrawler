@@ -248,7 +248,7 @@ while numUnvisitedUrls > 0:
 	
 	# Check to make sure it is a link we need to check
 	# meaning is from domain fring.ccs.neu.edu
-	elif (not validateURL(currentURL):
+	elif (not validateURL(currentURL)):
 		unvisitedUrls.remove(currentURL)
 
 	else:	
