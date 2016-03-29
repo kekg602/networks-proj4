@@ -10,6 +10,9 @@ PORT = 80
 # Host to connect to
 FAKEBOOK_HOST = "fring.ccs.neu.edu"
 
+# Main domain
+REQUIRED_DOMAIN = "http://fring.ccs.neu.edu"
+
 # Keep track of csrf token for login
 csrfToken = ""
 
@@ -151,14 +154,18 @@ def printSecretFlags():
 # crawl or not (if it begins with http://fring.ccs.neu.edu)
 # return true if yes false, if no
 def validateURL(url):
-	#TODO
-	return True
+	global REQUIRED_DOMAIN
+
+	if REQUIRED_DOMAIN in url:
+		return True
+	else:
+		return False
 
 # Set the CSRF token
 def setCsrf(token):
 	global csrfToken
 	csrfToken = token
-	print "Setting token :" + csrfToken
+	#print "Setting token :" + csrfToken
 
 # Handle html parsing
 class PyHtmlParser(HTMLParser.HTMLParser):
@@ -206,7 +213,7 @@ password = sys.argv[2];
 
 # URLs to search
 unvisitedUrls = []
-unvisitedUrls.append("/accounts/login/?next=/fakebook/")
+unvisitedUrls.append("http://fring.ccs.neu.edu/accounts/login/?next=/fakebook/")
 
 # Visited URLs
 visitedUrls = []
