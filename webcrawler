@@ -198,7 +198,6 @@ class PyHtmlParser(HTMLParser.HTMLParser):
        	#print "Encountered some data  :", data
 		if isLastStartTagFlag:
 			print "This data is a flag"
-			isLastStartTagFlag = False
 
 # Get the user's username and password
 # for fakebook
