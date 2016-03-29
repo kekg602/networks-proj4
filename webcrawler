@@ -26,7 +26,7 @@ def setupGetRequest(path):
 	if (len(setCookie) == 0):
 		request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\n\r\n"
 	else:
-		request = "GET /fakebook/ HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + " \r\nCookie: " + cookie + "\r\n\r\n"
+		request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + " \r\nCookie: " + cookie + "\r\n\r\n"
 	
 	print request	
         return request
@@ -90,14 +90,15 @@ def handleOkStatus(response):
 			cookie = headerInfo[1].split(";")
 			setCookie.append(cookie[0])
 		elif headerInfo[0] == "Transfer-Encoding":
-			if headerInfo[1] == "chunked":
+			if headerInfo[1] == " chunked":
 				isChunked = True
 
 	if (isChunked):
 		for l in lines:
 			if l == "0":
+				index = lines.index(l) - 1
 				print "IT'S A ZERO"
-				body = lines[-2]
+				body = lines[index]
 				print body
 	else:
 		body = lines[-1]
