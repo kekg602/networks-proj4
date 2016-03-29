@@ -147,6 +147,14 @@ def printSecretFlags():
 	for flag in secretFlags:
 		print flag + "\n"
 
+# Check if the url we found is one we need to
+# crawl or not (if it begins with http://fring.ccs.neu.edu)
+# return true if yes false, if no
+def validateURL(url):
+	#TODO
+	return True
+
+# Set the CSRF token
 def setCsrf(token):
 	global csrfToken
 	csrfToken = token
@@ -190,6 +198,7 @@ class PyHtmlParser(HTMLParser.HTMLParser):
        	#print "Encountered some data  :", data
 		if isLastStartTagFlag:
 			print "This data is a flag"
+			isLastStartTagFlag = False
 
 # Get the user's username and password
 # for fakebook
@@ -232,14 +241,16 @@ while numUnvisitedUrls > 0:
 		currentURL = x
 		break;
 	
-	# Check to make sure it is a link we need to check
-	# meaning is from domain fring.ccs.neu.edu
-	
 	# if we have already visited this url
 	# remove it and move on to the next
 	if currentURL in visitedUrls:
 		unvisitedUrls.remove(currentURL)
-		
+	
+	# Check to make sure it is a link we need to check
+	# meaning is from domain fring.ccs.neu.edu
+	elif (not validateURL(currentURL):
+		unvisitedUrls.remove(currentURL)
+
 	else:	
 		# create a TCP socket
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
