@@ -9,14 +9,26 @@ PORT = 80
 
 # Host to connect to
 FAKEBOOK_HOST = "fring.ccs.neu.edu"
-LOGIN_URL = "/accounts/login/?next=/fakebook/"
 
 # Keep track of csrf token for login
 csrfToken = ""
 
 # Setup get requests
 def setupGetRequest(path):
-        request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\n\r\n"
+	global setCookie
+	
+	cookie = ""
+	for c in setCookie:
+		cookieDetails = c.split("=")
+		print cookieDetails[0]
+		if cookieDetails[0] == "sessionid":
+			cookie = c
+	
+	if (len(setCookie) == 0):
+		request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\n\r\n"
+	else:
+		request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\nCookie: " + cookie + "\r\n\r\n"
+		
         return request
 		
 # Setup the post request to login
@@ -32,8 +44,8 @@ def setupLoginRequest():
 
 	print "Cookie string" + cookieString
 
-	request = "POST /accounts/login/ HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\nContent-Length: 109\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\nOrigin: http://fring.ccs.neu.edu\r\nCookie: " + cookieString +"\r\nUpgrade-Insecure-Requests: 1\r\nContent-Type: application/x-www-form-urlencoded\r\nDNT: 1\r\nReferer: http://fring.ccs.neu.edu/accounts/login/\r\nAccept-Encoding: gzip, deflate\r\nAccept-Language: en-US,en;q=0.8\r\nCookie: csrftoken=" + csrfToken + "; sessionid=" + cookieString + "\r\n\r\nusername=" + username + "&password=" + password + "&csrfmiddlewaretoken=" + csrfToken + "&next=%2Ffakebook%2F\r\n"
-	print request
+	request = "POST /accounts/login/ HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\nContent-Length: 109\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\nOrigin: http://fring.ccs.neu.edu\r\nCookie: " + cookieString +"\r\nUpgrade-Insecure-Requests: 1\r\nContent-Type: application/x-www-form-urlencoded\r\nDNT: 1\r\nReferer: http://fring.ccs.neu.edu/accounts/login/\r\nAccept-Encoding: gzip, deflate\r\nAccept-Language: en-US,en;q=0.8\r\n\r\nusername=" + username + "&password=" + password + "&csrfmiddlewaretoken=" + csrfToken + "&next=%2Ffakebook%2F\r\n"
+	
 	return request
 
 # Get the response
@@ -67,37 +79,46 @@ def getStatus(response):
 # URLs as well as the secret flags
 def handleOkStatus(response):
 	global setCookie
+	isChunked = False
 
 	# Get the message body
 	lines = response.split("\r\n")
+	
+	# Check the Header lines for cookies if we don't
+	# have them yet and whether or not it is chunked
+	for l in lines:
+		headerInfo = l.split(":")
+		if headerInfo[0] == "Set-Cookie" and len(setCookie) == 0:
+			cookie = headerInfo[1].split(";")
+			setCookie.append(cookie[0])
+		elif headerInfo[0] == "Transfer-Encoding":
+			if headerInfo[1] == "chunked":
+				isChunked = True
 
-	body = lines[-1]
+	if (isChunked):
+		body = lines[-2]
+		print body
+	else:
+		body = lines[-1]
 	
 	# Parse through it looking for key items
 	parser = PyHtmlParser()
 	parser.feed(body)
 	
-	# Get cookies
-	for l in lines:
-		headerInfo = l.split(":")
-		if headerInfo[0] == "Set-Cookie":
-			cookie = headerInfo[1].split(";")
-			print "COOKIE INFO " + cookie[0]
-			setCookie.append(cookie[0])
-	
 # Go through the response and add the
 # new location to the list of urls
 def handleRedirectStatus(response):
+	global unvisitedUrls
 	lines = response.split("\r\n")
 	
-	print "Redirect"
-
 	# Find location header
 	for l in lines:
-		linesDetails = l.split(":")
-		if lineDetails[0] == "Location":
-			print "Redirect function"
-			
+		lineDetails = l.split(" ")
+		print lineDetails[0]
+		if lineDetails[0] == "Location:":
+			unvisitedUrls.append(lineDetails[1])
+			print "location " + lineDetails[1]
+								
 # Check starter tags for certain attributes
 def checkAttributes(key, value, attrs):
 	for attr in attrs:
@@ -112,10 +133,6 @@ def getStartTagAttributeValue(value, attrs):
 
 	for attr in attrs:
 		if attr[0] == value:
-			#if value == "value":
-			#	csrfToken = attr[1]
-			#	print "Setting token :" + csrfToken
-
 			return attr[1]
 
 # Print the found flags
@@ -173,16 +190,9 @@ class PyHtmlParser(HTMLParser.HTMLParser):
 username = sys.argv[1];
 password = sys.argv[2];
 
-# create a TCP socket
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-# connect to fakebook
-server_address = (FAKEBOOK_HOST, PORT)
-sock.connect(server_address)
-
 # URLs to search
 unvisitedUrls = []
-#unvisitedUrls.append("/accounts/login/?next=/fakebook/")
+unvisitedUrls.append("/accounts/login/?next=/fakebook/")
 
 # Visited URLs
 visitedUrls = []
@@ -205,39 +215,9 @@ fullResponse = ""
 # Keep track if last start tag signifies a flag
 isLastStartTagFlag = False
 
-# Handle login:
+# Booleans for login sequence
 loggedIn = False
-while not loggedIn:
-	currentURL = LOGIN_URL
-
-	# send GET request to fakebook
-	message = setupGetRequest(currentURL)
-	sock.send(message)
-
-	# get full response
-	fullResponse = getResponse(sock)
-	print fullResponse	
-
-	# get the status code
-	status = getStatus(fullResponse)
-	
-	# OK, 200 - parse response
-	if int(status) == 200:
-		handleOkStatus(fullResponse)
-	
-	# connect to fakebook
-	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	server_address = (FAKEBOOK_HOST, PORT)
-	sock.connect(server_address)
-
-	# login
-	message = setupLoginRequest()
-	sock.send(message)
-		
-	fullResponse = getResponse(sock)
-	print "TRIED LOGIN " + fullResponse
-	
-	loggedIn = True
+postRequest = False
 
 # While more urls to go through
 while numUnvisitedUrls > 0:
@@ -253,35 +233,58 @@ while numUnvisitedUrls > 0:
 		unvisitedUrls.remove(currentURL)
 		
 	else:	
-		# send GET request to fakebook
-		message = setupGetRequest(currentURL)
+		# create a TCP socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+		# connect to fakebook
+		server_address = (FAKEBOOK_HOST, PORT)
+		sock.connect(server_address)
+		
+		if (not postRequest):
+			# send GET request to fakebook
+			message = setupGetRequest(currentURL)
+		elif (postRequest):
+			# send POST request to fakebook to login
+			message = setupLoginRequest()
+			
 		sock.send(message)
 
 		# get full response
 		fullResponse = getResponse(sock)
 	
 		# print response
-		#print fullResponse
+		print fullResponse
 
 		# get the status code and handle each
 		status = getStatus(fullResponse)
 	
+		# check the response after trying to login
+		# if we got a 2xx or 3xx response then success
+		if (postRequest and int(status) < 400):
+			loggedIn = True
+			postRequest = False
+	
 		# OK, 200 - parse response
 		if int(status) == 200:
 			handleOkStatus(fullResponse)
+			
+			# if we are not logged in yet, do this process
+			if (not loggedIn):
+				postRequest = True
+				
 		# Moved permanently, 301 - request new location
-		elif int(status) >= 300 and status < 400:
+		elif int(status) >= 300 and int(status) < 400:
 			handleRedirectStatus(fullResponse)
 	
 		# As long as the url does not need to be requested again
 		# (any status except 500 including 403 and 404)
 		# remove it from the unvisited list
-		if int(status) != 500:
+		if int(status) != 500 and loggedIn:
 			visitedUrls = visitedUrls.append(currentURL)
 	    		unvisitedUrls.remove(currentURL)
 		
-	
 	# Update the number of urls left to visit
 	numUnvisitedUrls = len(unvisitedUrls)
+	print numUnvisitedUrls
 
 printSecretFlags()
