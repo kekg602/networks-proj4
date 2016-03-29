@@ -19,16 +19,16 @@ def setupGetRequest(path):
 	
 	cookie = ""
 	for c in setCookie:
-		cookieDetails = c.split("=")
-		print cookieDetails[0]
-		if cookieDetails[0] == "sessionid":
-			cookie = c
+		if cookie != "":
+			cookie = cookie + ";"
+		cookie = cookie + " " + c
 	
 	if (len(setCookie) == 0):
 		request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\n\r\n"
 	else:
-		request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\nCookie: " + cookie + "\r\n\r\n"
-		
+		request = "GET /fakebook/ HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + " \r\nCookie: " + cookie + "\r\n\r\n"
+	
+	print request	
         return request
 		
 # Setup the post request to login
@@ -41,8 +41,6 @@ def setupLoginRequest():
 		if cookieString != "":
 			cookieString = cookieString + ";"
 		cookieString = cookieString + " " + c
-
-	print "Cookie string" + cookieString
 
 	request = "POST /accounts/login/ HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\nContent-Length: 109\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\nOrigin: http://fring.ccs.neu.edu\r\nCookie: " + cookieString +"\r\nUpgrade-Insecure-Requests: 1\r\nContent-Type: application/x-www-form-urlencoded\r\nDNT: 1\r\nReferer: http://fring.ccs.neu.edu/accounts/login/\r\nAccept-Encoding: gzip, deflate\r\nAccept-Language: en-US,en;q=0.8\r\n\r\nusername=" + username + "&password=" + password + "&csrfmiddlewaretoken=" + csrfToken + "&next=%2Ffakebook%2F\r\n"
 	
@@ -88,7 +86,7 @@ def handleOkStatus(response):
 	# have them yet and whether or not it is chunked
 	for l in lines:
 		headerInfo = l.split(":")
-		if headerInfo[0] == "Set-Cookie" and len(setCookie) == 0:
+		if headerInfo[0] == "Set-Cookie":
 			cookie = headerInfo[1].split(";")
 			setCookie.append(cookie[0])
 		elif headerInfo[0] == "Transfer-Encoding":
@@ -96,8 +94,11 @@ def handleOkStatus(response):
 				isChunked = True
 
 	if (isChunked):
-		body = lines[-2]
-		print body
+		for l in lines:
+			if l == "0":
+				print "IT'S A ZERO"
+				body = lines[-2]
+				print body
 	else:
 		body = lines[-1]
 	
@@ -109,15 +110,21 @@ def handleOkStatus(response):
 # new location to the list of urls
 def handleRedirectStatus(response):
 	global unvisitedUrls
+	global setCookie
+
+	setCookie = []
+
 	lines = response.split("\r\n")
 	
-	# Find location header
+	# Find location and set cookie header
 	for l in lines:
 		lineDetails = l.split(" ")
-		print lineDetails[0]
 		if lineDetails[0] == "Location:":
 			unvisitedUrls.append(lineDetails[1])
-			print "location " + lineDetails[1]
+	 	elif lineDetails[0] == "Set-Cookie:":
+			cookie = lineDetails[1].split(";")
+			setCookie.append(cookie[0])
+			
 								
 # Check starter tags for certain attributes
 def checkAttributes(key, value, attrs):
@@ -129,8 +136,6 @@ def checkAttributes(key, value, attrs):
 
 # Get an attribute value
 def getStartTagAttributeValue(value, attrs):
-	global csrfToken
-
 	for attr in attrs:
 		if attr[0] == value:
 			return attr[1]
@@ -222,7 +227,9 @@ postRequest = False
 # While more urls to go through
 while numUnvisitedUrls > 0:
 	
-	currentURL = unvisitedUrls[0]
+	for x in unvisitedUrls:
+		currentURL = x
+		break;
 	
 	# Check to make sure it is a link we need to check
 	# meaning is from domain fring.ccs.neu.edu
@@ -280,11 +287,11 @@ while numUnvisitedUrls > 0:
 		# (any status except 500 including 403 and 404)
 		# remove it from the unvisited list
 		if int(status) != 500 and loggedIn:
-			visitedUrls = visitedUrls.append(currentURL)
+			visitedUrls.append(currentURL)
 	    		unvisitedUrls.remove(currentURL)
 		
 	# Update the number of urls left to visit
 	numUnvisitedUrls = len(unvisitedUrls)
-	print numUnvisitedUrls
+	#print numUnvisitedUrls
 
 printSecretFlags()
