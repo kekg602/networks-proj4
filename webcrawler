@@ -11,6 +11,9 @@ PORT = 80
 FAKEBOOK_HOST = "fring.ccs.neu.edu"
 LOGIN_URL = "/accounts/login/?next=/fakebook/"
 
+# Keep track of csrf token for login
+csrfToken = ""
+
 # Setup get requests
 def setupGetRequest(path):
         request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\n\r\n"
@@ -68,6 +71,12 @@ def handleOkStatus(response):
 	# Get the message body
 	lines = response.split("\r\n")
 
+	body = lines[-1]
+	
+	# Parse through it looking for key items
+	parser = PyHtmlParser()
+	parser.feed(body)
+	
 	# Get cookies
 	for l in lines:
 		headerInfo = l.split(":")
@@ -75,12 +84,6 @@ def handleOkStatus(response):
 			cookie = headerInfo[1].split(";")
 			print "COOKIE INFO " + cookie[0]
 			setCookie.append(cookie[0])
-
-	body = lines[-1]
-
-	# Parse through it looking for key items
-	parser = PyHtmlParser()
-	parser.feed(body)
 	
 # Go through the response and add the
 # new location to the list of urls
@@ -109,9 +112,9 @@ def getStartTagAttributeValue(value, attrs):
 
 	for attr in attrs:
 		if attr[0] == value:
-			if value == "value":
-				csrfToken = attr[1]
-				print "Setting token :" + csrfToken
+			#if value == "value":
+			#	csrfToken = attr[1]
+			#	print "Setting token :" + csrfToken
 
 			return attr[1]
 
@@ -141,7 +144,7 @@ class PyHtmlParser(HTMLParser.HTMLParser):
 		# If found, store it to use for login
 		if tag == "input":
 			if (checkAttributes("type", "hidden", attrs)) and (checkAttributes("name", "csrfmiddlewaretoken", attrs)) and (checkAttributes("value", "", attrs)):
-				csrfToken = getStartTagAttributeValue("value", attrs)
+				setCsrf(getStartTagAttributeValue("value", attrs))
 
 		# Check for URLs
 		# If one is foun add it to unvisitedUrls list
@@ -202,9 +205,6 @@ fullResponse = ""
 # Keep track if last start tag signifies a flag
 isLastStartTagFlag = False
 
-# Keep track of csrf token for login
-csrfToken = ""
-
 # Handle login:
 loggedIn = False
 while not loggedIn:
@@ -230,12 +230,13 @@ while not loggedIn:
 	server_address = (FAKEBOOK_HOST, PORT)
 	sock.connect(server_address)
 
+	# login
 	message = setupLoginRequest()
 	sock.send(message)
 		
 	fullResponse = getResponse(sock)
 	print "TRIED LOGIN " + fullResponse
-		
+	
 	loggedIn = True
 
 # While more urls to go through
