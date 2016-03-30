@@ -169,8 +169,9 @@ def setCsrf(token):
 
 # Handle html parsing
 class PyHtmlParser(HTMLParser.HTMLParser):
-	#global unvisitedUrls
-	#global secretFlags
+	global unvisitedUrls
+	global secretFlags
+	global unvisited
 	global isLastStartTagFlag
 
 	isLastStartTagFlag = False
@@ -185,17 +186,20 @@ class PyHtmlParser(HTMLParser.HTMLParser):
 				setCsrf(getStartTagAttributeValue("value", attrs))
 
 		# Check for URLs
-		# If one is foun add it to unvisitedUrls list
+		# If one is found add it to unvisitedUrls list
 		if tag == "a":
 			if (checkAttributes("href", "", attrs)):
-				print "Link found"
-				#unvisitedUrls.append(attr[1])
+				unvisited = str(getStartTagAttributeValue("href", attrs))
+				print "Link Found: " + unvisited 
+				unvisitedUrls.append(unvisited)
 
-		# Check for secret flags
+		# Check for secret flags. 
+		# If one is found add it to the secretFlags list 
 		if tag == "h2":
 			if checkAttributes("class", "secret_flag", attrs) and checkAttributes("style", "color:red", attrs):
 				print "Found flag start tag"						
 				isLastStartTagFlag = True
+				secretFlags.append(attrs[1])
 
 	def handle_endtag(self, tag):
        	#print "Encountered an end tag :", tag
