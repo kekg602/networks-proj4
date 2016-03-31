@@ -24,16 +24,18 @@ def setupGetRequest(path):
 	
 	cookie = ""
 	for c in setCookie:
+		c = c.replace(" ", "")
 		if cookie != "":
 			cookie = cookie + ";"
 		cookie = cookie + " " + c
 	
 	if (len(setCookie) == 0):
 		request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + "\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\nAccept-Language: en-US,en;q=0.8\r\nUpgrade-Insecure-Requests: 1\r\nUser-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.87 Safari/537.36\r\nAccept-Encoding: gzip\r\n\r\n"
+
 	else:
-		request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + " \r\nCookie: " + cookie + "\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\nAccept-Language: en-US,en;q=0.8\r\nUpgrade-Insecure-Requests: 1\r\nUser-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.87 Safari/537.36\r\nAccept-Encoding: gzip\r\n\r\n"
-	
-	#print request	
+		request = "GET " + path + " HTTP/1.1 \r\nHost: " + FAKEBOOK_HOST + " \r\nCookie: sessionid=0e62830cdf220a7a2bb4623ac68f85ca\r\nAccept: text/html,application/xhtml+xml,application/xml; q=0.9,image/webp,*/*; q=0.8\r\nAccept-Language: en-US,en; q=0.8\r\nUpgrade-Insecure-Requests: 1\r\nUser-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.87 Safari/537.36\r\nAccept-Encoding: gzip, deflate, sdch\r\n\r\n"
+
+	print request	
         return request
 		
 # Setup the post request to login
@@ -76,6 +78,7 @@ def getStatus(response):
 	if initLine[0] == "HTTP/1.1":
 		status = str(initLine[1])
 
+	print status
 	return status
 		
 # Go through the html and look for more
@@ -106,15 +109,14 @@ def handleOkStatus(response):
 		for l in lines:
 			if l == "0":
 				index = lines.index(l) - 1
-				#print "IT'S A ZERO"
 				body = lines[index]
-				#print body
+	
 	else:
 		body = lines[-1]
 	
 	# Unzip the body if necessary
 	if isZipped:
-		print "BODY " + body
+		#print "BODY " + body
 		body = unzip(body)
 
 	# Parse through it looking for key items
@@ -137,7 +139,7 @@ def handleRedirectStatus(response):
 		if lineDetails[0] == "Location:":
 			fullUrl = lineDetails[1]
 			path = fullUrl[24:]
-			unvisitedUrls.append(path)
+			unvisitedUrls.insert(0, path)
 	 	elif lineDetails[0] == "Set-Cookie:":
 			cookie = lineDetails[1].split(";")
 			setCookie.append(cookie[0])
@@ -169,6 +171,9 @@ def printSecretFlags():
 def validateURL(url):
 	global REQUIRED_DOMAIN
 
+	if url == "/":
+		return False
+
 	if REQUIRED_DOMAIN in url or url[0] == "/":
 		return True
 	else:
@@ -189,7 +194,7 @@ def addUrlToUnvisitedList(attrs):
 	for a in attrs:
 		if a[0] == "href":
 			if not a[1] in visitedUrls and not a[1] in unvisitedUrls:
-				print "Adding URL " + a[1]
+				#print "Adding URL " + a[1]
 				unvisitedUrls.append(a[1])
 	
 # Add the secret flag to the list
@@ -229,32 +234,33 @@ class PyHtmlParser(HTMLParser.HTMLParser):
 	def handle_data(self, data):
        		#print "Encountered some data  :", data
 		if isLastStartTagFlag:
-			print "This data is a flag"
-			addFlag(data)
+			print "This data is a flag" + data
+			#addFlag(data)
 
 # Unzip the response
 def unzip(response):
+	print "HERE" 
+
+	print "RESPONSE "  + response
+
 	unzippedResponse = ""
 
-	if os.path.isfile('file.txt.gz'):
-		print "removing"
-		os.remove('file.txt.gz')
+	#if os.path.isfile('file.txt.gz'):
+	#	print "FILE STILL EXISTS"
 
+	# create a gzip file with response
 	fi = open('file.txt.gz', 'wb')
 	fi.write(response)
 	fi.close()
 
-	#fi = open('file.txt.gz', 'rb')
-
-	#gzcode = "\x1f\x8b\x08"
-	#gzcodeLength = len(gzcode)
-	
-	# Make sure it is gzipped
-	#fileStart = fi.read(gzcodeLength)
-
-	#if fileStart == gzcode:
+	# unzip the file
 	with gzip.open('file.txt.gz', 'rb') as f:
 		unzippedResponse = f.read()
+		f.close()
+
+	#if os.path.isfile('file.txt.gz'):
+	#	print "removing file"
+	#	os.remove('file.txt.gz')
 
 	return unzippedResponse
 	
